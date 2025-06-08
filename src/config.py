@@ -1,0 +1,3 @@
+PhyPhox_HOST = "192.168.2.151"
+DB_NAME = "data.db"
+RETRY_INTERVAL = 10

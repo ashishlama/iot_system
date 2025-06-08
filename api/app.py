@@ -1,41 +1,38 @@
-# from flask import Response
-# import time
-# import sqlite3
+from flask import Flask, jsonify, request
+import sys
+import os
+from flask_cors import CORS
 
-
-# @app.route('/api/stream')
-# def stream():
-#     conn = sqlite3.connect("../data.db")
-#     c = conn.cursor()
-#     last_ts = 0
-#     while True:
-#         c.execute('SELECT * from stream WHERE timestamp > ? ORDER BY timestamp ASC', (last_ts))
-#         rows = c.fetchall()
-#         if rows:
-#             for r in rows:
-#                 last_ts = r[0]
-#                 yield f"data: {r[1]}\n\n"
-#         time.sleep(1)
-# return Response(event_stream(), mimetype="text/event-stream")
-
-from flask import Flask, jsonify
-import sqlite3
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
+from database import init_db, get_data, get_latest_sensor_data
+from config import DB_NAME
 
 app = Flask(__name__)
+CORS(app) 
 
 def get_latest_data():
-    conn = sqlite3.connect("../data.db")   # Adjust path as needed
-    c = conn.cursor()
-    c.execute('SELECT * FROM stream ORDER BY timestamp DESC LIMIT 50')
-    rows = c.fetchall()
-    conn.close()
-    # Format as list of dicts
-    data = [{"timestamp": r[0], "value": r[1]} for r in rows]
+    conn = init_db(DB_NAME)   # Adjust path as needed
+    data = get_data(conn)
     return data
 
 @app.route('/api/data', methods=['GET'])
 def api_data():
     return jsonify(get_latest_data())
+
+@app.route('/api/sensor_data', methods=['GET'])
+def api_sensor():
+    sensor_type = request.args.get('sensortype')
+    if not sensor_type:
+        return jsonify({'error': 'Missing sensortype parameter'}), 400
+
+    conn = init_db(DB_NAME)
+    data = get_latest_sensor_data(conn, sensor_type)
+    conn.close()
+
+    if not data:
+        return jsonify({'error': f'No data found or invalid sensortype: {sensor_type}'}), 404
+
+    return jsonify(data)
 
 if __name__ == '__main__':
     app.run(debug=True)
