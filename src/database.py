@@ -109,6 +109,7 @@ def get_data(conn, limit=50):
 SENSOR_TYPE_TO_COLUMNS = {
     'accelerometer': ['accX', 'accY', 'accZ'],
     'gyroscope': ['gyroX', 'gyroY', 'gyroZ'],
+    'gps': ['gpsLat', 'gpsLon', 'gpsZ']
     # Add more mappings as needed
 }
 
@@ -150,7 +151,16 @@ def get_latest_sensor_data(conn, sensor_type, limit=10):
             "beta": row[3],
             "gamma": row[4],
             })
-        else:
+        elif sensor_type == "gps":
+            result.append({
+            "SensorType": sensor_type,
+            "id": id_val,
+            "time": iso_ts,
+            "lat": row[2],
+            "lng": row[3],
+            "alt": row[4],
+        })
+        elif sensor_type == "accelerometer":
             result.append({
             "SensorType": sensor_type,
             "id": id_val,
@@ -161,3 +171,51 @@ def get_latest_sensor_data(conn, sensor_type, limit=10):
         })
         
     return result
+
+    
+def get_latest_processed_data(conn, limit=10):
+    columns = PROCESSED_COLUMNS
+    if not columns:
+        return []
+
+    c = conn.cursor()
+    # Also select id and timestamp for mapping to id/time fields
+    c.execute(f'''
+        SELECT  {", ".join(columns)}
+        FROM processed_data
+        ORDER BY id DESC
+        LIMIT ?
+    ''', (limit,))
+    rows = c.fetchall()
+
+    # Format the output per your structure
+    result = []
+    for row in rows:
+        id_val = row[0]
+        ts = row[1]
+        # Convert timestamp to ISO format ending with Z if not already
+        # If your timestamp is already in ISO format, you can just append Z if needed
+        try:
+            dt = datetime.fromisoformat(ts)
+            iso_ts = dt.isoformat() + "Z" if not ts.endswith("Z") else ts
+        except Exception:
+            # Fallback: just append Z
+            iso_ts = ts if ts.endswith("Z") else ts + "Z"
+            
+        result.append({
+            "id": id_val,
+            "time": iso_ts,
+            "acc_mag": row[2],
+            "jerk": row[3],
+            "distance": row[4],
+            "speed": row[5],
+            "direction": row[6],
+            "event": row[7],
+            "rel_x": row[8],
+            "rel_y": row[9],
+            "delta_time": row[10]
+        })
+
+        
+    return result
+

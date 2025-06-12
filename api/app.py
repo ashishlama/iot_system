@@ -4,7 +4,7 @@ import os
 from flask_cors import CORS
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
-from database import init_db, get_data, get_latest_sensor_data
+from database import init_db, get_data, get_latest_sensor_data, get_latest_processed_data
 from config import DB_NAME
 
 app = Flask(__name__)
@@ -31,6 +31,17 @@ def api_sensor():
 
     if not data:
         return jsonify({'error': f'No data found or invalid sensortype: {sensor_type}'}), 404
+
+    return jsonify(data)
+
+@app.route('/api/processed_data', methods=['GET'])
+def api_processed():
+    conn = init_db(DB_NAME)
+    data = get_latest_processed_data(conn)
+    conn.close()
+
+    if not data:
+        return jsonify({'error': f'No data found'}), 404
 
     return jsonify(data)
 
